@@ -54,10 +54,12 @@
                         <input type="radio" value="1" data-type="solo">
                         <i class="fa fa-user"></i> Solo
                     </label>
-                    <label class="btn btn-default <?= /*$_SERVER['REMOTE_ADDR'] != '172.18.72.189' ? 'disabled' : null*/ ?>">
-                        <input type="radio" value="2" data-type="group">
-                        <i class="fa fa-group"></i> Team
-                    </label>
+                    <?php if($_SERVER['REMOTE_ADDR'] == '172.18.72.189'): ?>
+                        <label class="btn btn-default">
+                            <input type="radio" value="2" data-type="group">
+                            <i class="fa fa-group"></i> Team
+                        </label>
+                    <?php endif; ?>
                 </div>
 
                 <br />
@@ -131,7 +133,7 @@
                 });
 
                 this.classList.add('active');
-                document.querySelector('input').value = this.dataset.id;
+                document.querySelector('input[name="opponent"]').value = this.dataset.id;
             });
         });
     })()
