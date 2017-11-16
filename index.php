@@ -10,12 +10,14 @@ use Symfony\Component\Templating\Helper\SlotsHelper;
 use Slim\Http\Request;
 use Slim\Http\Response;
 
-$app = new \Slim\App([
-    'settings' => [
-        'displayErrorDetails' => true,
-        'determineRouteBeforeAppMiddleware' => true,
-    ],
-]);
+$app = new \Slim\App(
+    [
+        'settings' => [
+            'displayErrorDetails' => true,
+            'determineRouteBeforeAppMiddleware' => true,
+        ],
+    ]
+);
 $container = $app->getContainer();
 
 $container['session'] = function () {
@@ -58,7 +60,7 @@ $container['database'] = function () {
     return $database;
 };
 
-$container['elo'] = function() {
+$container['elo'] = function () {
     return new EloCalculator();
 };
 
@@ -191,7 +193,7 @@ $app->get(
             ->distinct()
             ->select(
                 [
-                    'id',
+                    'players.id',
                     'name',
                     'elo'
                 ]
@@ -205,6 +207,16 @@ $app->get(
                     $join->on('game_players.player_id', '=', 'players.id');
                 }
             )
+            ->join(
+                'games',
+                function ($join) {
+                    /**
+                     * @var $join \Illuminate\Database\Query\JoinClause
+                     */
+                    $join->on('games.id', '=', 'game_players.game_id');
+                }
+            )
+            ->where('games.type', 1)
             ->orderByDesc('elo')
             ->get();
 
@@ -216,7 +228,7 @@ $app->get(
 
         $position = $players->search(
             function ($item, $key) use ($session) {
-                return $item->id  == $session->get('user')['id'];
+                return $item->id == $session->get('user')['id'];
             }
         );
 
@@ -233,7 +245,7 @@ $app->get(
 
 $app->group(
     '/teams',
-    function() {
+    function () {
         $this->get(
             (string)null,
             function (Request $request, Response $response, $arguments) {
@@ -282,7 +294,7 @@ $app->group(
                             ->where(
                                 'player_id',
                                 $session->get('user')['id']
-                                )
+                            )
                     )
                     ->get()
                     ->groupBy('team_id')
@@ -359,7 +371,7 @@ $app->group(
 
 $app->group(
     '/games',
-    function() {
+    function () {
         $this->get(
             (string)null,
             function (Request $request, Response $response, $arguments) {
@@ -370,13 +382,14 @@ $app->group(
                 $database = $this->get('database');
                 $session = $this->get('session');
 
-                $games = $database->table('game_players')
+                $soloGames = $database->table('game_players')
                     ->select(
                         [
                             'game_players.game_id',
                             'game_players.player_id',
                             'game_players.elo_change',
                             'players.name',
+                            'games.type'
                         ]
                     )
                     ->join(
@@ -388,6 +401,16 @@ $app->group(
                             $join->on('players.id', '=', 'game_players.player_id');
                         }
                     )
+                    ->join(
+                        'games',
+                        function ($join) {
+                            /**
+                             * @var $join \Illuminate\Database\Query\JoinClause
+                             */
+                            $join->on('games.id', '=', 'game_players.game_id');
+                        }
+                    )
+                    ->where('games.type', 1)
                     ->get()
                     ->groupBy('game_id')
                     ->sort()
@@ -395,6 +418,64 @@ $app->group(
                     ->map(
                         function ($game) {
                             return $game->sortBy('player_id');
+                        }
+                    );
+
+                $teamGames = $database->table('game_players')
+                    ->select(
+                        [
+                            'players.name',
+                            'game_players.game_id',
+                            'game_players.player_id as team_id',
+                            'game_players.elo_change',
+                            'games.type',
+                            $database::raw("'ABC'")
+                        ]
+                    )
+                    ->join(
+                        'teams',
+                        function ($join) {
+                            /**
+                             * @var $join \Illuminate\Database\Query\JoinClause
+                             */
+                            $join->on('teams.id', '=', 'game_players.player_id');
+                        }
+                    )
+                    ->join(
+                        'team_players',
+                        function ($join) {
+                            /**
+                             * @var $join \Illuminate\Database\Query\JoinClause
+                             */
+                            $join->on('team_players.team_id', '=', 'game_players.player_id');
+                        }
+                    )
+                    ->join(
+                        'players',
+                        function ($join) {
+                            /**
+                             * @var $join \Illuminate\Database\Query\JoinClause
+                             */
+                            $join->on('players.id', '=', 'team_players.player_id');
+                        }
+                    )
+                    ->join(
+                        'games',
+                        function ($join) {
+                            /**
+                             * @var $join \Illuminate\Database\Query\JoinClause
+                             */
+                            $join->on('games.id', '=', 'game_players.game_id');
+                        }
+                    )
+                    ->where('games.type', 2)
+                    ->get()
+                    ->groupBy('game_id')
+                    ->sort()
+                    ->reverse()
+                    ->map(
+                        function ($game) {
+                            return $game->groupBy('team_id');
                         }
                     );
 
@@ -415,8 +496,7 @@ $app->group(
                     ->get();
 
 
-
-                $teams = $database->table('teams')
+                $opponentTeams = $database->table('teams')
                     ->select(
                         [
                             'teams.id',
@@ -465,12 +545,68 @@ $app->group(
                         }
                     );
 
+                $yourTeams = $database->table('teams')
+                    ->distinct()
+                    ->select(
+                        [
+                            'teams.id',
+                            'teams.elo as team_elo',
+                            'team_players.team_id',
+                            'team_players.player_id',
+                            'players.name as player_name',
+                            'players.elo as player_elo',
+                        ]
+                    )
+                    ->join(
+                        'team_players',
+                        function ($join) {
+                            /**
+                             * @var $join \Illuminate\Database\Query\JoinClause
+                             */
+                            $join->on('teams.id', '=', 'team_players.team_id');
+                        }
+                    )
+                    ->join(
+                        'players',
+                        function ($join) {
+                            /**
+                             * @var $join \Illuminate\Database\Query\JoinClause
+                             */
+                            $join->on('players.id', '=', 'team_players.player_id');
+                        }
+                    )
+                    ->whereIn(
+                        'teams.id',
+                        $database->table('team_players')
+                            ->distinct()
+                            ->select('team_id')
+                            ->where(
+                                'player_id',
+                                $session->get('user')['id']
+                            )
+                    )
+                    ->get()
+                    ->groupBy('team_id')
+                    ->sort()
+                    ->reverse()
+                    ->map(
+                        function ($game) {
+                            return $game->sortBy('player_id');
+                        }
+                    );
+
                 return $this->view->render(
                     '/games.php',
                     [
                         'players' => $players->toArray(),
-                        'games' => $games->toArray(),
-                        'teams' => $teams->toArray(),
+                        'games' => [
+                            'solo' => $soloGames->toArray(),
+                            'teams' => $teamGames
+                        ],
+                        'teams' => [
+                            'yours' => $yourTeams->toArray(),
+                            'opponents' => $opponentTeams->toArray()
+                        ],
                     ]
                 );
             }
@@ -488,101 +624,200 @@ $app->group(
                 $session = $this->get('session');
                 $calculator = $this->get('elo');
 
-                $game = $database->table('games')
-                    ->insertGetId(
-                        []
-                    );
+                if ($request->getParsedBody()['type'] == 1) {
+                    $game = $database->table('games')
+                        ->insertGetId(
+                            []
+                        );
 
-                # Game players
-                $players = $database->table('players')
-                    ->select(
-                        [
+                    # Game players
+                    $players = $database->table('players')
+                        ->select(
+                            [
+                                'id',
+                                'name',
+                                'elo'
+                            ]
+                        )
+                        ->whereIn(
                             'id',
-                            'name',
-                            'elo'
-                        ]
-                    )
-                    ->whereIn(
-                        'id',
-                        [
-                            $session->get('user')['id'],
+                            [
+                                $session->get('user')['id'],
+                                $request->getParsedBody()['opponent']
+                            ]
+                        )
+                        ->orderByDesc('elo')
+                        ->get();
+
+                    # Winner
+                    $winner = $players
+                        ->where(
+                            'id',
+                            $session->get('user')['id']
+                        )
+                        ->first();
+
+                    # Loser
+                    $loser = $players
+                        ->where(
+                            'id',
                             $request->getParsedBody()['opponent']
-                        ]
-                    )
-                    ->orderByDesc('elo')
-                    ->get();
+                        )
+                        ->first();
 
-                # Winner
-                $winner = $players
-                    ->where(
-                        'id',
-                        $session->get('user')['id']
-                    )
-                    ->first();
-
-                # Loser
-                $loser = $players
-                    ->where(
-                        'id',
-                        $request->getParsedBody()['opponent']
-                    )
-                    ->first();
-
-                # New winner elo
-                $elo = $calculator->calculate(
-                    $winner->elo,
-                    $loser->elo,
-                    'win'
-                );
-
-                # Update winner with new elo
-                $database->table('players')
-                    ->where(
-                        'id',
-                        $session->get('user')['id']
-                    )
-                    ->update(
-                        [
-                            'elo' => $elo
-                        ]
+                    # New winner elo
+                    $elo = $calculator->calculate(
+                        $winner->elo,
+                        $loser->elo,
+                        'win'
                     );
 
-                $database->table('game_players')
-                    ->insert(
-                        [
-                            'game_id' => $game,
-                            'player_id' => $winner->id,
-                            'elo_change' => ($winner->elo > $elo ? '-' : '+') . abs($winner->elo - $elo)
-                        ]
+                    # Update winner with new elo
+                    $database->table('players')
+                        ->where(
+                            'id',
+                            $session->get('user')['id']
+                        )
+                        ->update(
+                            [
+                                'elo' => $elo
+                            ]
+                        );
+
+                    $database->table('game_players')
+                        ->insert(
+                            [
+                                'game_id' => $game,
+                                'player_id' => $winner->id,
+                                'elo_change' => ($winner->elo > $elo ? '-' : '+') . abs($winner->elo - $elo)
+                            ]
+                        );
+
+                    # Loser new elo
+                    $elo = $calculator->calculate(
+                        $loser->elo,
+                        $winner->elo,
+                        'lose'
                     );
 
-                # Loser new elo
-                $elo = $calculator->calculate(
-                    $loser->elo,
-                    $winner->elo,
-                    'lose'
-                );
+                    # Update loser with new elo
+                    $database->table('players')
+                        ->where(
+                            'id',
+                            $request->getParsedBody()['opponent']
+                        )
+                        ->update(
+                            [
+                                'elo' => $elo
+                            ]
+                        );
 
-                # Update loser with new elo
-                $database->table('players')
-                    ->where(
-                        'id',
-                        $request->getParsedBody()['opponent']
-                    )
-                    ->update(
-                        [
-                            'elo' => $elo
-                        ]
+                    $database->table('game_players')
+                        ->insert(
+                            [
+                                'game_id' => $game,
+                                'player_id' => $loser->id,
+                                'elo_change' => ($loser->elo > $elo ? '-' : '+') . abs($loser->elo - $elo)
+                            ]
+                        );
+                } else {
+                    $game = $database->table('games')
+                        ->insertGetId(
+                            [
+                                'type' => 2
+                            ]
+                        );
+
+                    # Game players
+                    $teams = $database->table('teams')
+                        ->select(
+                            [
+                                'id',
+                                'elo'
+                            ]
+                        )
+                        ->whereIn(
+                            'id',
+                            [
+                                $request->getParsedBody()['me'],
+                                $request->getParsedBody()['opponent']
+                            ]
+                        )
+                        ->orderByDesc('elo')
+                        ->get();
+
+                    # Winner
+                    $winner = $teams
+                        ->where(
+                            'id',
+                            $request->getParsedBody()['me']
+                        )
+                        ->first();
+
+                    # Loser
+                    $loser = $teams
+                        ->where(
+                            'id',
+                            $request->getParsedBody()['opponent']
+                        )
+                        ->first();
+
+                    # New winner elo
+                    $elo = $calculator->calculate(
+                        $winner->elo,
+                        $loser->elo,
+                        'win'
                     );
 
-                $database->table('game_players')
-                    ->insert(
-                        [
-                            'game_id' => $game,
-                            'player_id' => $loser->id,
-                            'elo_change' => ($loser->elo > $elo ? '-' : '+') . abs($loser->elo - $elo)
-                        ]
+                    # Update winner with new elo
+                    $database->table('teams')
+                        ->where(
+                            'id',
+                            $request->getParsedBody()['me']
+                        )
+                        ->update(
+                            [
+                                'elo' => $elo,
+                            ]
+                        );
+
+                    $database->table('game_players')
+                        ->insert(
+                            [
+                                'game_id' => $game,
+                                'player_id' => $winner->id,
+                                'elo_change' => ($winner->elo > $elo ? '-' : '+') . abs($winner->elo - $elo)
+                            ]
+                        );
+
+                    # Loser new elo
+                    $elo = $calculator->calculate(
+                        $loser->elo,
+                        $winner->elo,
+                        'lose'
                     );
+
+                    # Update loser with new elo
+                    $database->table('teams')
+                        ->where(
+                            'id',
+                            $request->getParsedBody()['opponent']
+                        )
+                        ->update(
+                            [
+                                'elo' => $elo
+                            ]
+                        );
+
+                    $database->table('game_players')
+                        ->insert(
+                            [
+                                'game_id' => $game,
+                                'player_id' => $loser->id,
+                                'elo_change' => ($loser->elo > $elo ? '-' : '+') . abs($loser->elo - $elo)
+                            ]
+                        );
+                }
 
                 return $response->withRedirect('/');
             }
@@ -604,7 +839,7 @@ $app->get(
             ->distinct()
             ->select(
                 [
-                    'id',
+                    'players.id',
                     'name',
                     'elo'
                 ]
@@ -618,13 +853,88 @@ $app->get(
                     $join->on('game_players.player_id', '=', 'players.id');
                 }
             )
+            ->join(
+                'games',
+                function ($join) {
+                    /**
+                     * @var $join \Illuminate\Database\Query\JoinClause
+                     */
+                    $join->on('games.id', '=', 'game_players.game_id');
+                }
+            )
+            ->where('games.type', 1)
             ->orderByDesc('elo')
             ->get();
+
+        $teams = $database->table('teams')
+            ->distinct()
+            ->select(
+                [
+                    'teams.id',
+                    'teams.elo as team_elo',
+                    'team_players.team_id',
+                    'team_players.player_id',
+                    'players.name as player_name',
+                    'players.elo as player_elo',
+                ]
+            )
+            ->join(
+                'team_players',
+                function ($join) {
+                    /**
+                     * @var $join \Illuminate\Database\Query\JoinClause
+                     */
+                    $join->on('teams.id', '=', 'team_players.team_id');
+                }
+            )
+            ->join(
+                'game_players',
+                function ($join) {
+                    /**
+                     * @var $join \Illuminate\Database\Query\JoinClause
+                     */
+                    $join->on('game_players.player_id', '=', 'teams.id');
+                }
+            )
+            ->join(
+                'games',
+                function ($join) {
+                    /**
+                     * @var $join \Illuminate\Database\Query\JoinClause
+                     */
+                    $join->on('games.id', '=', 'game_players.game_id');
+                }
+            )
+            ->join(
+                'players',
+                function ($join) {
+                    /**
+                     * @var $join \Illuminate\Database\Query\JoinClause
+                     */
+                    $join->on('players.id', '=', 'team_players.player_id');
+                }
+            )
+            ->where('games.type', 2)
+            ->get()
+            ->groupBy('team_id')
+            ->sort()
+            ->reverse()
+            ->map(
+                function ($game) {
+                    return $game;
+                }
+            )
+            ->sortByDesc(
+                function ($game) {
+                    return $game->first()->team_elo;
+                }
+            );
 
         return $this->view->render(
             '/ladder.php',
             [
-                'players' => $players->toArray()
+                'players' => $players->toArray(),
+                'teams' => $teams->toArray(),
             ]
         );
     }

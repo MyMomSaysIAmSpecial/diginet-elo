@@ -58,12 +58,7 @@
                     <li>
                         <a href="/teams">
                             <span class="fa fa-users" aria-hidden="true"></span>
-                            <s>
-                                Teams
-                            </s>
-                            <sup>
-                                Soon
-                            </sup>
+                            Teams
                         </a>
                     </li>
                     <li>
@@ -89,12 +84,6 @@
 <script>
     (function() {
         var sup = document.querySelector('sup');
-        sup.parentNode.addEventListener('mouseover', function () {
-            sup.innerHTML = 'Nope';
-        });
-        sup.parentNode.addEventListener('mouseout', function () {
-            sup.innerHTML = 'Soon';
-        });
     })();
 </script>
 
