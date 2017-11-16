@@ -5,7 +5,7 @@
         <div class="panel panel-default">
             <div class="panel-heading">
                 <h3 class="panel-title">
-                    Teams
+                    Your teams
                 </h3>
 
                 <div class="btn-group pull-right">

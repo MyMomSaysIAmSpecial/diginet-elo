@@ -273,6 +273,16 @@ $app->group(
                             $join->on('players.id', '=', 'team_players.player_id');
                         }
                     )
+                    ->whereIn(
+                        'teams.id',
+                        $database->table('team_players')
+                            ->distinct()
+                            ->select('team_id')
+                            ->where(
+                                'player_id',
+                                $session->get('user')['id']
+                                )
+                    )
                     ->get()
                     ->groupBy('team_id')
                     ->sort()
@@ -306,6 +316,13 @@ $app->group(
                         'players' => $players->toArray()
                     ]
                 );
+            }
+        );
+
+        $this->post(
+            (string)null,
+            function (Request $request, Response $response, $arguments) {
+
             }
         );
     }
