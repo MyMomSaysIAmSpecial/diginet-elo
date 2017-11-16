@@ -322,7 +322,35 @@ $app->group(
         $this->post(
             (string)null,
             function (Request $request, Response $response, $arguments) {
+                /**
+                 * @var $database \Illuminate\Database\Capsule\Manager
+                 * @var $session \Symfony\Component\HttpFoundation\Session\Session
+                 */
+                $database = $this->get('database');
+                $session = $this->get('session');
 
+                $team = $database->table('teams')
+                    ->insertGetId(
+                        []
+                    );
+
+                $database->table('team_players')
+                    ->insert(
+                        [
+                            'team_id' => $team,
+                            'player_id' => $session->get('user')['id']
+                        ]
+                    );
+
+                $database->table('team_players')
+                    ->insert(
+                        [
+                            'team_id' => $team,
+                            'player_id' => $request->getParsedBody()['ally']
+                        ]
+                    );
+
+                return $response->withRedirect('/teams');
             }
         );
     }

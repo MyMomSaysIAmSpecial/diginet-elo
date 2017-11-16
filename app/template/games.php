@@ -49,7 +49,7 @@
                 </h4>
             </div>
             <div class="modal-body">
-                <div class="btn-group" data-toggle="buttons" role="group">
+                <div class="btn-group pull-right" data-toggle="buttons" role="group">
                     <label class="btn btn-default active">
                         <input type="radio" value="1">
                         <i class="fa fa-user"></i> Solo

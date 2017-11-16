@@ -35,9 +35,7 @@
                     <?php endif; ?>
 
                     <?= $player->position; ?>
-                    <?php if($player->position != 'Unranked'): ?>
-                        (<?= $player->elo; ?>)
-                    <?php endif; ?>
+                    (<?= $player->elo; ?>)
                 </li>
             </ul>
         </div>

@@ -66,7 +66,7 @@
                     <button type="button" class="btn btn-default" data-dismiss="modal">
                         Close
                     </button>
-                    <input type="hidden" name="opponent" value="" />
+                    <input type="hidden" name="ally" value="" />
                     <button type="submit" class="btn btn-success">
                         <i class="fa fa-check" aria-hidden="true"></i>
                         Submit
