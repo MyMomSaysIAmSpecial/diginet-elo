@@ -156,7 +156,7 @@ $app->post(
 //            ->withScheme('https')
 //            ->withPort(443)
             ->withPath(
-                '/mmr/'
+                '/'
             );
 //
 //        if ($request->getParam('username') == 'developer' && $request->getParam('password') == 'developer') {
@@ -393,7 +393,7 @@ $app->group(
                         ]
                     );
 
-                return $response->withRedirect('/mmr');
+                return $response->withRedirect('/');
             }
         );
     }
