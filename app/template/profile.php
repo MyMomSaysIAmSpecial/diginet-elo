@@ -22,7 +22,7 @@
                 </li>
                 <li class="list-group-item">
                     Rank:
-                    <?php if($player->position - 1 <= 2): ?>
+                    <?php if($player->position != 'Unranked' && $player->position - 1 <= 2): ?>
                         <?php if(!($player->position - 1)): ?>
                             <i class="fa fa-trophy fa-trophy-gold" aria-hidden="true"></i>
                         <?php endif; ?>
@@ -35,7 +35,9 @@
                     <?php endif; ?>
 
                     <?= $player->position; ?>
-                    (<?= $player->elo; ?>)
+                    <?php if($player->position != 'Unranked'): ?>
+                        (<?= $player->elo; ?>)
+                    <?php endif; ?>
                 </li>
             </ul>
         </div>

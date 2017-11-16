@@ -188,6 +188,7 @@ $app->get(
         $session = $this->get('session');
 
         $players = $database->table('players')
+            ->distinct()
             ->select(
                 [
                     'id',
@@ -195,19 +196,31 @@ $app->get(
                     'elo'
                 ]
             )
+            ->join(
+                'game_players',
+                function ($join) {
+                    /**
+                     * @var $join \Illuminate\Database\Query\JoinClause
+                     */
+                    $join->on('game_players.player_id', '=', 'players.id');
+                }
+            )
             ->orderByDesc('elo')
             ->get();
 
-        $player = $players->where(
-            'id',
-            $session->get('user')['id']
-        )->first();
+        $player = $database->table('players')
+            ->where(
+                'id',
+                $session->get('user')['id']
+            )->first();
 
-        $player->position = $players->search(
+        $position = $players->search(
             function ($item, $key) use ($session) {
                 return $item->id  == $session->get('user')['id'];
             }
-        ) + 1;
+        );
+
+        $player->position = $position !== false ? $position + 1 : 'Unranked';
 
         return $this->view->render(
             '/profile.php',
