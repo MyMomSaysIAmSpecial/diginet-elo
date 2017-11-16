@@ -56,7 +56,7 @@
                         </a>
                     </li>
                     <li>
-                        <a href="#">
+                        <a href="/teams">
                             <span class="fa fa-users" aria-hidden="true"></span>
                             <s>
                                 Teams

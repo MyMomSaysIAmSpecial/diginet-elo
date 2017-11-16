@@ -5,31 +5,33 @@
         <div class="panel panel-default">
             <div class="panel-heading">
                 <h3 class="panel-title">
-                    Games
+                    Teams
                 </h3>
 
                 <div class="btn-group pull-right">
                     <a class="btn btn-default btn-sm" data-toggle="modal" href="#submit">
                         <i class="fa fa-plus" aria-hidden="true"></i>
-                        Submit new game
+                        Form new team
                     </a>
                 </div>
                 <span class="clearfix"></span>
             </div>
             <ul class="list-group">
-                <?php foreach ($games as $participants): ?>
+                <?php foreach ($teams as $participants): ?>
                     <li class="list-group-item">
                         <?php $i = 0; # I need increment, because position not always starts from 0, shit actually. ?>
                         <?php foreach($participants as $position => $participant): ?>
-                            <span class="text-<?= $participant->elo_change > 0 ? 'success' : 'danger'; ?>">
-                                <?= $participant->name; ?> (<?= $participant->elo_change; ?>)
+                            <span class="text-success">
+                                <?= $participant->player_name; ?>
                             </span>
 
                             <?php if(!$i): ?>
-                                vs.
+                                with.
                             <?php endif; ?>
                             <?php $i++; ?>
                         <?php endforeach; ?>
+
+                        (<?=$participants->first()->team_elo;?>)
                     </li>
                 <?php endforeach; ?>
             </ul>
@@ -45,30 +47,18 @@
                     <span aria-hidden="true">×</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    Game won versus:
+                    Form team with:
                 </h4>
             </div>
             <div class="modal-body">
-                <div class="btn-group" data-toggle="buttons" role="group">
-                    <label class="btn btn-default active">
-                        <input type="radio" value="1">
-                        <i class="fa fa-user"></i> Solo
-                    </label>
-                    <label class="btn btn-default">
-                        <input type="radio" value="2">
-                        <i class="fa fa-group"></i> Team
-                    </label>
-                </div>
-
-                <br />
-                <br />
-
                 <ul class="list-group">
-                    <?php foreach ($players as $position => $player): ?>
-                        <li class="list-group-item player-selector" data-id="<?= $player->id; ?>">
-                            <?= $player->name; ?>
-                        </li>
-                    <?php endforeach; ?>
+                    <ul class="list-group">
+                        <?php foreach ($players as $position => $player): ?>
+                            <li class="list-group-item player-selector" data-id="<?= $player->id; ?>">
+                                <?= $player->name; ?>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
                 </ul>
             </div>
             <div class="modal-footer">

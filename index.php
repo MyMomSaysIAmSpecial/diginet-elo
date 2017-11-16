@@ -219,6 +219,86 @@ $app->get(
 );
 
 $app->group(
+    '/teams',
+    function() {
+        $this->get(
+            (string)null,
+            function (Request $request, Response $response, $arguments) {
+                /**
+                 * @var $database \Illuminate\Database\Capsule\Manager
+                 * @var $session \Symfony\Component\HttpFoundation\Session\Session
+                 */
+                $database = $this->get('database');
+                $session = $this->get('session');
+
+                $teams = $database->table('teams')
+                    ->select(
+                        [
+                            'teams.id',
+                            'teams.elo as team_elo',
+                            'team_players.team_id',
+                            'team_players.player_id',
+                            'players.name as player_name',
+                            'players.elo as player_elo',
+                        ]
+                    )
+                    ->join(
+                        'team_players',
+                        function ($join) {
+                            /**
+                             * @var $join \Illuminate\Database\Query\JoinClause
+                             */
+                            $join->on('teams.id', '=', 'team_players.team_id');
+                        }
+                    )
+                    ->join(
+                        'players',
+                        function ($join) {
+                            /**
+                             * @var $join \Illuminate\Database\Query\JoinClause
+                             */
+                            $join->on('players.id', '=', 'team_players.player_id');
+                        }
+                    )
+                    ->get()
+                    ->groupBy('team_id')
+                    ->sort()
+                    ->reverse()
+                    ->map(
+                        function ($game) {
+                            return $game->sortBy('player_id');
+                        }
+                    );
+
+                $players = $database->table('players')
+                    ->select(
+                        [
+                            'id',
+                            'name',
+                            'elo'
+                        ]
+                    )
+                    ->where(
+                        'id',
+                        '!=',
+                        $session->get('user')['id']
+                    )
+                    ->orderByDesc('elo')
+                    ->get();
+
+                return $this->view->render(
+                    '/teams.php',
+                    [
+                        'teams' => $teams,
+                        'players' => $players->toArray()
+                    ]
+                );
+            }
+        );
+    }
+);
+
+$app->group(
     '/games',
     function() {
         $this->get(
