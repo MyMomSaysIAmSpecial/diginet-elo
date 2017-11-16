@@ -245,6 +245,7 @@ $app->group(
                 $session = $this->get('session');
 
                 $teams = $database->table('teams')
+                    ->distinct()
                     ->select(
                         [
                             'teams.id',
@@ -413,11 +414,63 @@ $app->group(
                     ->orderByDesc('elo')
                     ->get();
 
+
+
+                $teams = $database->table('teams')
+                    ->select(
+                        [
+                            'teams.id',
+                            'teams.elo as team_elo',
+                            'team_players.team_id',
+                            'team_players.player_id',
+                            'players.name as player_name',
+                            'players.elo as player_elo',
+                        ]
+                    )
+                    ->join(
+                        'team_players',
+                        function ($join) {
+                            /**
+                             * @var $join \Illuminate\Database\Query\JoinClause
+                             */
+                            $join->on('teams.id', '=', 'team_players.team_id');
+                        }
+                    )
+                    ->join(
+                        'players',
+                        function ($join) {
+                            /**
+                             * @var $join \Illuminate\Database\Query\JoinClause
+                             */
+                            $join->on('players.id', '=', 'team_players.player_id');
+                        }
+                    )
+                    ->whereNotIn(
+                        'teams.id',
+                        $database->table('team_players')
+                            ->distinct()
+                            ->select('team_id')
+                            ->where(
+                                'player_id',
+                                $session->get('user')['id']
+                            )
+                    )
+                    ->get()
+                    ->groupBy('team_id')
+                    ->sort()
+                    ->reverse()
+                    ->map(
+                        function ($game) {
+                            return $game->sortBy('player_id');
+                        }
+                    );
+
                 return $this->view->render(
                     '/games.php',
                     [
                         'players' => $players->toArray(),
-                        'games' => $games->toArray()
+                        'games' => $games->toArray(),
+                        'teams' => $teams->toArray(),
                     ]
                 );
             }

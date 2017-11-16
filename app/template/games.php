@@ -51,11 +51,11 @@
             <div class="modal-body">
                 <div class="btn-group pull-right" data-toggle="buttons" role="group">
                     <label class="btn btn-default active">
-                        <input type="radio" value="1">
+                        <input type="radio" value="1" data-type="solo">
                         <i class="fa fa-user"></i> Solo
                     </label>
-                    <label class="btn btn-default">
-                        <input type="radio" value="2">
+                    <label class="btn btn-default <?= /*$_SERVER['REMOTE_ADDR'] != '172.18.72.189' ? 'disabled' : null*/ ?>">
+                        <input type="radio" value="2" data-type="group">
                         <i class="fa fa-group"></i> Team
                     </label>
                 </div>
@@ -63,10 +63,28 @@
                 <br />
                 <br />
 
-                <ul class="list-group">
+                <ul class="list-group list-group-solo">
                     <?php foreach ($players as $position => $player): ?>
                         <li class="list-group-item player-selector" data-id="<?= $player->id; ?>">
                             <?= $player->name; ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+
+                <ul class="list-group list-group-team hidden">
+                    <?php foreach ($teams as $participants): ?>
+                        <li class="list-group-item">
+                            <?php $i = 0; # I need increment, because position not always starts from 0, shit actually. ?>
+                            <?php foreach($participants as $position => $participant): ?>
+                                <span class="text-default">
+                                <?= $participant->player_name; ?>
+                            </span>
+
+                                <?php if(!$i): ?>
+                                    with.
+                                <?php endif; ?>
+                                <?php $i++; ?>
+                            <?php endforeach; ?>
                         </li>
                     <?php endforeach; ?>
                 </ul>
@@ -89,6 +107,22 @@
 
 <script>
     (function() {
+        var soloList = document.querySelector('.list-group-solo');
+        var groupList = document.querySelector('.list-group-team');
+
+        var radios = document.querySelectorAll('input[type="radio"]');
+        radios.forEach(function (radio) {
+            radio.addEventListener('click', function () {
+                if (this.dataset.type === 'solo') {
+                    soloList.classList.remove('hidden');
+                    groupList.classList.add('hidden');
+                } else {
+                    soloList.classList.add('hidden');
+                    groupList.classList.remove('hidden');
+                }
+            });
+        });
+
         var selectors = document.querySelectorAll('.player-selector');
         selectors.forEach(function(selector) {
             selector.addEventListener('click', function() {
